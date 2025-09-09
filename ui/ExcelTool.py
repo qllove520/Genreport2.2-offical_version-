@@ -441,9 +441,85 @@ class ExcelTool(QWidget):
             # 直接复制模板文件作为新文档
             shutil.copy2(self.template_file, new_file_path)
             
+            # 在新生成的文档的sheet1中添加"测试报告生成工具制作"标识
+            self._add_tool_identifier_to_sheet1(new_file_path)
+            
             self.log(f"✅ 新验收测试报告已生成: {new_filename}", clear_prev=False)
             self.log(f"📁 保存位置: {new_file_path}", clear_prev=False)
             
         except Exception as e:
             self.log(f"❌ 生成新文档失败: {str(e)}", is_error=True, clear_prev=False)
             raise
+
+    def _add_tool_identifier_to_sheet1(self, file_path):
+        """在新生成的文档的sheet1中添加'测试报告生成工具制作'标识"""
+        try:
+            import xlwings as xw
+            app = None
+            
+            try:
+                self.log("正在向sheet1添加工具标识...", clear_prev=False)
+                
+                # 使用xlwings打开文件
+                app = xw.App(visible=False, add_book=False)
+                wb = app.books.open(file_path, update_links=False)
+                
+                # 获取第一个工作表（sheet1）
+                sheet1 = wb.sheets[0]
+                
+                # 在A1单元格添加标识
+                sheet1.range('A1').value = "测试报告生成工具制作"
+                
+                # 设置字体样式（可选）
+                try:
+                    sheet1.range('A1').api.Font.Bold = True
+                    sheet1.range('A1').api.Font.Size = 12
+                    sheet1.range('A1').api.Font.Color = 0x0000FF  # 蓝色
+                except Exception as style_error:
+                    self.log(f"⚠️ 设置字体样式失败，但标识已添加: {style_error}", clear_prev=False)
+                
+                # 保存文件
+                wb.save()
+                wb.close()
+                
+                self.log("✅ 已成功在sheet1添加'测试报告生成工具制作'标识", clear_prev=False)
+                
+            except Exception as xlwings_error:
+                self.log(f"⚠️ xlwings操作失败，尝试使用openpyxl: {xlwings_error}", clear_prev=False)
+                
+                # 如果xlwings失败，尝试使用openpyxl作为备选方案
+                try:
+                    from openpyxl import load_workbook
+                    
+                    wb = load_workbook(file_path)
+                    sheet1 = wb.active  # 获取活动工作表
+                    
+                    # 在A1单元格添加标识
+                    sheet1['A1'] = "测试报告生成工具制作"
+                    
+                    # 设置字体样式（可选）
+                    try:
+                        from openpyxl.styles import Font
+                        sheet1['A1'].font = Font(bold=True, size=12, color="0000FF")
+                    except Exception as style_error:
+                        self.log(f"⚠️ 设置字体样式失败，但标识已添加: {style_error}", clear_prev=False)
+                    
+                    # 保存文件
+                    wb.save(file_path)
+                    wb.close()
+                    
+                    self.log("✅ 已成功使用openpyxl在sheet1添加'测试报告生成工具制作'标识", clear_prev=False)
+                    
+                except Exception as openpyxl_error:
+                    self.log(f"❌ openpyxl操作也失败: {openpyxl_error}", is_error=True, clear_prev=False)
+                    raise
+                    
+        except Exception as e:
+            self.log(f"❌ 添加工具标识失败: {str(e)}", is_error=True, clear_prev=False)
+            # 不抛出异常，避免影响主流程
+        finally:
+            if app:
+                try:
+                    app.quit()
+                except:
+                    pass
