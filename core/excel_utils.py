@@ -680,6 +680,7 @@ def consolidate_excel_data_and_insert_chart(doc1_path: str, doc2_path: str, doc3
     ]
 
     app = None
+    module3_completed = False
     try:
         # Check target report path first as it's mandatory
         if not target_report_path or not os.path.exists(target_report_path):
@@ -971,6 +972,13 @@ def consolidate_excel_data_and_insert_chart(doc1_path: str, doc2_path: str, doc3
                 else:
                     if log_callback: log_callback(f"没有数据需要粘贴到 '{target_sheet_name}'。", False)
 
+                # 模块3完成标识：当处理到'验收测试用例'时认为模块3执行完成
+                try:
+                    if target_sheet_name == '验收测试用例' and (src_path and os.path.exists(src_path)):
+                        module3_completed = True
+                except Exception:
+                    pass
+
         # Handle image insertion (Doc4)
         pic_sheet_name = '设备外观图'
         if doc4_path and os.path.exists(doc4_path):
@@ -1023,6 +1031,26 @@ def consolidate_excel_data_and_insert_chart(doc1_path: str, doc2_path: str, doc3
             if log_callback: log_callback(
                 f"警告：图片文件 '{os.path.basename(doc4_path) if doc4_path else '未指定'}' 未选择或不存在，跳过图片插入。",
                 False)
+
+        # 如果模块3执行完成，则在第一个工作表增加“测试报告生成工具制作”标识
+        try:
+            if module3_completed:
+                first_sheet = wb.sheets[0]
+                # 优先将标识写在不易干扰的区域
+                candidate_cells = ['Z1', 'AA1', 'AB1', 'AC1', 'A1']
+                target_cell = 'A1'
+                try:
+                    for c in candidate_cells:
+                        val = first_sheet.range(c).value
+                        if val is None or str(val).strip() == '':
+                            target_cell = c
+                            break
+                except Exception:
+                    target_cell = 'A1'
+                first_sheet.range(target_cell).value = '测试报告生成工具制作'
+                if log_callback: log_callback(f"已在Sheet1的 '{target_cell}' 写入标识：测试报告生成工具制作", False)
+        except Exception as e:
+            if log_callback: log_callback(f"警告：写入Sheet1标识失败：{e}", False)
 
         wb.save()
         wb.close()
@@ -1269,6 +1297,25 @@ def _consolidate_with_win32com_fallback(doc1_path: str, doc2_path: str, doc3_pat
             except Exception as e:
                 if log_callback: log_callback(f"处理图片时出错: {e}", True)
         
+        # 如果模块3执行完成，则在第一个工作表增加“测试报告生成工具制作”标识（win32com备用方案）
+        try:
+            if module3_completed and target_wb:
+                first_sheet = target_wb.Worksheets(1)
+                candidates = ['Z1', 'AA1', 'AB1', 'AC1', 'A1']
+                chosen = 'A1'
+                try:
+                    for c in candidates:
+                        val = first_sheet.Range(c).Value
+                        if val is None or str(val).strip() == '':
+                            chosen = c
+                            break
+                except Exception:
+                    chosen = 'A1'
+                first_sheet.Range(chosen).Value = '测试报告生成工具制作'
+                if log_callback: log_callback(f"已在Sheet1的 '{chosen}' 写入标识：测试报告生成工具制作", False)
+        except Exception as e:
+            if log_callback: log_callback(f"警告：写入Sheet1标识失败（win32com）：{e}", False)
+
         # 保存文件
         target_wb.Save()
         if log_callback: log_callback("文件保存成功", False)
