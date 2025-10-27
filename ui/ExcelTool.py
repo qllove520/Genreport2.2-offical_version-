@@ -105,8 +105,29 @@ class ExcelTool(QWidget):
                     background-color: #1565C0;
                 }
             """)
+            
+            # 添加删除按钮
+            btn_delete = QPushButton("删除")
+            btn_delete.clicked.connect(lambda: self.clear_single_input(line_edit_widget))
+            btn_delete.setStyleSheet("""
+                QPushButton {
+                    background-color: #f44336;
+                    color: white;
+                    border-radius: 5px;
+                    font-size: 14px;
+                    padding: 8px 15px;
+                }
+                QPushButton:hover {
+                    background-color: #d32f2f;
+                }
+                QPushButton:pressed {
+                    background-color: #b71c1c;
+                }
+            """)
+            
             file_layout.addWidget(line_edit_widget)
             file_layout.addWidget(btn_browse)
+            file_layout.addWidget(btn_delete)
             form_layout.addRow(label_text, file_widget)
 
         # 数据台账
@@ -386,6 +407,29 @@ class ExcelTool(QWidget):
             tb = traceback.format_exc()
             self.log(f"发生错误：{type(e).__name__}: {str(e)}\n详细信息：\n{tb}", is_error=True, clear_prev=False)
             QMessageBox.critical(self, "错误", f"发生错误：\n{str(e)}")
+
+    def clear_single_input(self, line_edit_widget):
+        """清空单个输入框"""
+        line_edit_widget.clear()
+        self.log(f"已清空输入框: {line_edit_widget.placeholderText() or '文件路径'}", clear_prev=False)
+        
+        # 如果是文件路径输入框，更新对应的变量
+        if line_edit_widget == self.data_file_display:
+            self.data_file = ""
+            self.label_data.setText("未选择 数据台账 文件")
+            # 保存到配置
+            self.settings_manager.save_settings(
+                "acceptance_filling",
+                {"data_file": self.data_file, "template_file": self.template_file}
+            )
+        elif line_edit_widget == self.template_file_display:
+            self.template_file = ""
+            self.label_template.setText("未选择 写入模板 文件")
+            # 保存到配置
+            self.settings_manager.save_settings(
+                "acceptance_filling",
+                {"data_file": self.data_file, "template_file": self.template_file}
+            )
 
     def clear_all_inputs(self):
         """清空所有输入框和日志内容"""

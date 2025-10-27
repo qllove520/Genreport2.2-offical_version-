@@ -1024,6 +1024,71 @@ def consolidate_excel_data_and_insert_chart(doc1_path: str, doc2_path: str, doc3
                 f"警告：图片文件 '{os.path.basename(doc4_path) if doc4_path else '未指定'}' 未选择或不存在，跳过图片插入。",
                 False)
 
+        # 新增：在X1单元格插入根目录下的PNG图片
+        try:
+            # 查找根目录下的PNG图片文件
+            workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            png_files = []
+            for file in os.listdir(workspace_root):
+                if file.lower().endswith('.png'):
+                    png_files.append(os.path.join(workspace_root, file))
+            
+            if png_files:
+                # 使用第一个找到的PNG文件
+                root_png_path = png_files[0]
+                if log_callback: log_callback(f"\n正在处理根目录PNG图片: '{os.path.basename(root_png_path)}'", False)
+                
+                # 查找或创建目标工作表（使用第一个工作表）
+                if wb.sheets:
+                    target_sheet = wb.sheets[0]  # 使用第一个工作表
+                    sheet_name = target_sheet.name
+                    if log_callback: log_callback(f"目标工作表: '{sheet_name}'", False)
+                    
+                    # 清除X1单元格区域的现有图片
+                    x1_cell = target_sheet.range('X1')
+                    if log_callback: log_callback(f"正在清除 '{sheet_name}' 中X1单元格区域的图片...", False)
+                    pictures_deleted_count = 0
+                    for pic in list(target_sheet.pictures):
+                        # 检查图片是否在X1单元格附近
+                        pic_left = pic.left
+                        pic_top = pic.top
+                        cell_left = x1_cell.left
+                        cell_top = x1_cell.top
+                        cell_width = x1_cell.width
+                        cell_height = x1_cell.height
+                        
+                        # 如果图片与X1单元格重叠或接近，则删除
+                        if (pic_left >= cell_left - cell_width and pic_left <= cell_left + cell_width and
+                            pic_top >= cell_top - cell_height and pic_top <= cell_top + cell_height):
+                            pic.delete()
+                            pictures_deleted_count += 1
+                    
+                    if log_callback: log_callback(f"已清除 {pictures_deleted_count} 张图片。", False)
+                    
+                    # 设置图片尺寸（适中的尺寸）
+                    width_pt = 15 * 28.3465  # 15厘米
+                    height_pt = 10 * 28.3465  # 10厘米
+                    
+                    # 插入图片到X1单元格
+                    normalized_png_path = os.path.normpath(root_png_path)
+                    if log_callback: log_callback(
+                        f"正在插入根目录PNG图片 '{os.path.basename(normalized_png_path)}' 到 '{sheet_name}' 的X1单元格...",
+                        False)
+                    
+                    target_sheet.pictures.add(normalized_png_path,
+                                             left=x1_cell.left,
+                                             top=x1_cell.top,
+                                             width=width_pt,
+                                             height=height_pt)
+                    if log_callback: log_callback("根目录PNG图片插入成功。", False)
+                else:
+                    if log_callback: log_callback("警告：目标工作簿中没有工作表，跳过根目录PNG图片插入。", False)
+            else:
+                if log_callback: log_callback("提示：根目录下没有找到PNG图片文件，跳过根目录PNG图片插入。", False)
+        except Exception as e:
+            if log_callback: log_callback(f"错误: 插入根目录PNG图片失败。原因: {e}", True)
+            if log_callback: log_callback(traceback.format_exc(), True)
+
         wb.save()
         wb.close()
         if log_callback: log_callback("\n✅ 所有数据及图片已成功汇总到目标文件。", False)
@@ -1268,6 +1333,76 @@ def _consolidate_with_win32com_fallback(doc1_path: str, doc2_path: str, doc3_pat
                         
             except Exception as e:
                 if log_callback: log_callback(f"处理图片时出错: {e}", True)
+        
+        # 新增：在X1单元格插入根目录下的PNG图片（win32com版本）
+        try:
+            # 查找根目录下的PNG图片文件
+            workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            png_files = []
+            for file in os.listdir(workspace_root):
+                if file.lower().endswith('.png'):
+                    png_files.append(os.path.join(workspace_root, file))
+            
+            if png_files:
+                # 使用第一个找到的PNG文件
+                root_png_path = png_files[0]
+                if log_callback: log_callback(f"\n正在处理根目录PNG图片: '{os.path.basename(root_png_path)}'", False)
+                
+                # 查找目标工作表（使用第一个工作表）
+                if target_wb.Worksheets.Count > 0:
+                    target_sheet = target_wb.Worksheets(1)  # 使用第一个工作表
+                    sheet_name = target_sheet.Name
+                    if log_callback: log_callback(f"目标工作表: '{sheet_name}'", False)
+                    
+                    # 清除X1单元格区域的现有图片
+                    x1_cell = target_sheet.Range("X1")
+                    if log_callback: log_callback(f"正在清除 '{sheet_name}' 中X1单元格区域的图片...", False)
+                    pictures_deleted_count = 0
+                    
+                    for shape in target_sheet.Shapes:
+                        # 检查图片是否在X1单元格附近
+                        shape_left = shape.Left
+                        shape_top = shape.Top
+                        cell_left = x1_cell.Left
+                        cell_top = x1_cell.Top
+                        cell_width = x1_cell.Width
+                        cell_height = x1_cell.Height
+                        
+                        # 如果图片与X1单元格重叠或接近，则删除
+                        if (shape_left >= cell_left - cell_width and shape_left <= cell_left + cell_width and
+                            shape_top >= cell_top - cell_height and shape_top <= cell_top + cell_height):
+                            shape.Delete()
+                            pictures_deleted_count += 1
+                    
+                    if log_callback: log_callback(f"已清除 {pictures_deleted_count} 张图片。", False)
+                    
+                    # 设置图片尺寸（适中的尺寸）
+                    width_pt = 15 * 28.3465  # 15厘米转换为磅
+                    height_pt = 10 * 28.3465  # 10厘米转换为磅
+                    
+                    # 插入图片到X1单元格
+                    normalized_png_path = os.path.normpath(root_png_path)
+                    if log_callback: log_callback(
+                        f"正在插入根目录PNG图片 '{os.path.basename(normalized_png_path)}' 到 '{sheet_name}' 的X1单元格...",
+                        False)
+                    
+                    target_sheet.Shapes.AddPicture(
+                        Filename=normalized_png_path,
+                        LinkToFile=False,
+                        SaveWithDocument=True,
+                        Left=x1_cell.Left,
+                        Top=x1_cell.Top,
+                        Width=width_pt,
+                        Height=height_pt
+                    )
+                    if log_callback: log_callback("根目录PNG图片插入成功。", False)
+                else:
+                    if log_callback: log_callback("警告：目标工作簿中没有工作表，跳过根目录PNG图片插入。", False)
+            else:
+                if log_callback: log_callback("提示：根目录下没有找到PNG图片文件，跳过根目录PNG图片插入。", False)
+        except Exception as e:
+            if log_callback: log_callback(f"错误: 插入根目录PNG图片失败。原因: {e}", True)
+            if log_callback: log_callback(traceback.format_exc(), True)
         
         # 保存文件
         target_wb.Save()
