@@ -443,6 +443,30 @@ class ExcelTool(QWidget):
             
             self.log(f"✅ 新验收测试报告已生成: {new_filename}", clear_prev=False)
             self.log(f"📁 保存位置: {new_file_path}", clear_prev=False)
+
+            # 在Sheet1写入标识“测试报告生成工具制作”
+            try:
+                from openpyxl import load_workbook
+                is_xlsm = new_file_path.lower().endswith('.xlsm')
+                wb = load_workbook(new_file_path, keep_vba=is_xlsm)
+                ws = wb.worksheets[0]
+
+                candidate_cells = ['Z1', 'AA1', 'AB1', 'AC1', 'A1']
+                target_cell = 'A1'
+                try:
+                    for c in candidate_cells:
+                        val = ws[c].value
+                        if val is None or str(val).strip() == '':
+                            target_cell = c
+                            break
+                except Exception:
+                    target_cell = 'A1'
+
+                ws[target_cell] = '测试报告生成工具制作'
+                wb.save(new_file_path)
+                self.log(f"已在Sheet1的 '{target_cell}' 写入标识：测试报告生成工具制作", clear_prev=False)
+            except Exception as mark_err:
+                self.log(f"⚠️ 写入Sheet1标识失败：{mark_err}", is_error=False, clear_prev=False)
             
         except Exception as e:
             self.log(f"❌ 生成新文档失败: {str(e)}", is_error=True, clear_prev=False)
